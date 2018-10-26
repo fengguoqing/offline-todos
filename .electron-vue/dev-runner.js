@@ -4,20 +4,21 @@ const chalk = require('chalk')
 const electron = require('electron')
 const path = require('path')
 const { say } = require('cfonts')
-const { spawn } = require('child_process')
-const webpack = require('webpack')
-const WebpackDevServer = require('webpack-dev-server')
-const webpackHotMiddleware = require('webpack-hot-middleware')
+const { spawn } = require('child_process');
+const webpack = require('webpack');
+const WebpackDevServer = require('webpack-dev-server');
+const webpackHotMiddleware = require('webpack-hot-middleware');
 
-const mainConfig = require('./webpack.main.config')
-const rendererConfig = require('./webpack.renderer.config')
+const mainConfig = require('./webpack.main.config');
+const rendererConfig = require('./webpack.renderer.config');
+const _ = require("lodash");
 
 let electronProcess = null
 let manualRestart = false
 let hotMiddleware
 
 function logStats(proc, data) {
-  let log = ''
+  let log = '';
 
   log += chalk.yellow.bold(`┏ ${proc} Process ${new Array((19 - proc.length) + 1).join('-')}`)
   log += '\n\n'
@@ -89,12 +90,16 @@ function startMain() {
       done()
     })
 
-    compiler.watch({}, (err, stats) => {
+    /**
+     * 由于格式化的原因，一次手动保存会触发多次保存，这里采用debounce防抖动
+     */
+    const fileWatchHandle = _.debounce((err, stats) => {
       if (err) {
         console.log(err)
         return
       }
 
+      console.log(chalk.bgRed("file_change!!!"));
       logStats('Main', stats)
 
       if (electronProcess && electronProcess.kill) {
@@ -109,7 +114,9 @@ function startMain() {
       }
 
       resolve()
-    })
+    }, 500);
+
+    compiler.watch({}, fileWatchHandle)
   })
 }
 
